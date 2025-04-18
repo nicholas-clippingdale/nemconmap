@@ -1,0 +1,19 @@
+[project]
+name = "nemconmap"
+version = "0.0.1"
+authors = [
+  { name="Nicholas Clippingdale", email="nick.clippingdale@gmail.com" },
+]
+description = "A package to download NEMWeb files to analyse constraints"
+readme = "README.md"
+requires-python = ">=3.13"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/nicholas-clippingdale/nemconmap"
+Issues = "https://github.com/nicholas-clippingdale/nemconmap/issues"
