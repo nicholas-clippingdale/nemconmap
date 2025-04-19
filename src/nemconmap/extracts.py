@@ -11,7 +11,7 @@ from nemosis import dynamic_data_compiler
 def extract_cons_info(start_date, end_date, raw_data_cache):
 
     ## Create a data frame with details of all active constraints
-    df_con_info = nemosis.dynamic_data_compiler(start_date, end_date, 'GENCONDATA', raw_data_cache)
+    df_con_info = dynamic_data_compiler(start_date, end_date, 'GENCONDATA', raw_data_cache)
 
     # Only keep the latest version of each constraint
     df_con_info = df_con_info.sort_values(by = ['GENCONID', 'VERSIONNO', 'LASTCHANGED']).drop_duplicates(subset = ['GENCONID'], keep = 'last')
