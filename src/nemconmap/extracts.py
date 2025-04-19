@@ -4,7 +4,7 @@
 #TODO: Import pre-dispach generator/IC/region data too, to infer about future behaviour
 #TODO: Add FCAS constraints
 
-import pandas
+import pandas as pd
 from nemosis import dynamic_data_compiler
 
 
