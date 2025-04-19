@@ -1,9 +1,0 @@
-LICENCE
-README.md
-pyproject.toml
-src/nemconmap/NEM_cons_join.py
-src/nemconmap/__init__.py
-src/nemconmap.egg-info/PKG-INFO
-src/nemconmap.egg-info/SOURCES.txt
-src/nemconmap.egg-info/dependency_links.txt
-src/nemconmap.egg-info/top_level.txt
