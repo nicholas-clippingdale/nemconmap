@@ -1,30 +1,14 @@
 #!/usr/bin/env python3
 
-#TODO: Also breakdown the RHS - looks more complex, it's not as simple as adding DUIDs, even ez2view doesn't do this - the table is GENERICCONSTRAINTRHS, file is PUBLIC_ARCHIVE#GENERICCONSTRAINTRHS#FILE01#YYYYMMDD0000.zip
-#TODO: Import pre-dispach generator/IC/region data too, to infer about future behaviour
-#TODO: Add FCAS constraints
-
 import pandas as pd
-from nemosis import dynamic_data_compiler
-
-
-def extract_cons_info(start_date, end_date, raw_data_cache):
-
-    ## Create a data frame with details of all active constraints
-    df_con_info = dynamic_data_compiler(start_date, end_date, 'GENCONDATA', raw_data_cache)
-
-    # Only keep the latest version of each constraint
-    df_con_info = df_con_info.sort_values(by = ['GENCONID', 'VERSIONNO', 'LASTCHANGED']).drop_duplicates(subset = ['GENCONID'], keep = 'last')
-
-
-    return(df_con_info)
+from nemosis import static_table, dynamic_data_compiler
 
 
 def extract_cons_coef(start_date, end_date, raw_data_cache):
 
     ## Create a data frame with coefficients of all effective constraints
-    df_con_region= dynamic_data_compiler(start_date, end_date, 'SPDREGIONCONSTRAINT', raw_data_cache, filter_cols = ['BIDTYPE'], filter_values = (['ENERGY'],))
-    df_con_conn = dynamic_data_compiler(start_date, end_date, 'SPDCONNECTIONPOINTCONSTRAINT', raw_data_cache, filter_cols = ['BIDTYPE'], filter_values = (['ENERGY'],))
+    df_con_region= dynamic_data_compiler(start_date, end_date, 'SPDREGIONCONSTRAINT', raw_data_cache)
+    df_con_conn = dynamic_data_compiler(start_date, end_date, 'SPDCONNECTIONPOINTCONSTRAINT', raw_data_cache)
     df_con_ic = dynamic_data_compiler(start_date, end_date, 'SPDINTERCONNECTORCONSTRAINT', raw_data_cache)
 
     # Create an empty column in the interconnector dataframe so columns are consistent across the three dataframes
