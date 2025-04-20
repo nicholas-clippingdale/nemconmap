@@ -12,7 +12,7 @@ def extract_cons_coef(start_date, end_date, raw_data_cache):
     df_con_ic = dynamic_data_compiler(start_date, end_date, 'SPDINTERCONNECTORCONSTRAINT', raw_data_cache)
 
     # Create an empty column in the interconnector dataframe so columns are consistent across the three dataframes
-    df_con_ic.insert(6, 'BIDTYPE', None, allow_duplicates = False)
+    df_con_ic.insert(len(df_con_ic.columns), 'BIDTYPE', 'None', allow_duplicates = False)
 
     # Create a column in each dataframe specifying the type of object its describing
     df_con_region.insert(0, 'TERMTYPE', 'REGION', allow_duplicates = False)
