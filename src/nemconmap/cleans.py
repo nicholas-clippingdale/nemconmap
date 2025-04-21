@@ -78,9 +78,11 @@ def clean_stations(raw_data_cache):
 
 
     # Remove all geoservice columns except the geo data
-    df_matched = df_matched.drop(columns = df_geoservice.columns.drop(['gml_id', 'LOCALITY', 'X_COORDINATE', 'Y_COORDINATE', 'geometry']))
+    df_matched = df_matched.drop(columns = df_geoservice.columns.drop(['LOCALITY', 'X_COORDINATE', 'Y_COORDINATE']))
+    df_matched = gpd.GeoDataFrame(df_matched, geometry = gpd.points_from_xy(df_matched.X_COORDINATE, df_matched.Y_COORDINATE), crs = 'EPSG:4326')
 
 
+    #TODO: Only have relevant columns in cleaned comparison
     df_matched.to_csv(raw_data_cache + 'Stations with Geo Data.csv', index = False)
 
     return(df_matched)
