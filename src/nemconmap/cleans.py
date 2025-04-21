@@ -37,7 +37,7 @@ def clean_stations(raw_data_cache):
     df_tmp = df_aemo_tmp.merge(df_geoservice_tmp, how = 'inner', left_on = 'Station Name - No Power Station', right_on = 'POWERSTATION_NAME - No Power Station')
     df_tmp = df_tmp.drop(columns = ['Station Name - No Power Station', 'POWERSTATION_NAME - No Power Station'])
 
-    df_matched = df_matched.append(df_tmp)
+    df_matched = pd.concat([df_matched, df_tmp])
 
     df_aemo_tmp = df_aemo_tmp.loc[~df_aemo_tmp['Station Name'].isin(df_matched['Station Name'])]
     df_geoservice_tmp = df_geoservice_tmp.loc[~df_geoservice_tmp['POWERSTATION_NAME'].isin(df_matched['POWERSTATION_NAME'])]
