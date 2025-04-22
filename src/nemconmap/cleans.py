@@ -1,88 +1,59 @@
 #!/usr/bin/env python3
 
-import pandas as pd
 import geopandas as gpd
-from requests import Request
-from owslib.wfs import WebFeatureService
 from nemosis import static_table
-from fuzzywuzzy import process
 
 
-def clean_stations(raw_data_cache):
+def clean_duid_w_geo(df_aemo, df_geo, raw_data_cache):
+
+    df_geo = df_geo[df_geo['Region'].isin(['VIC1', 'NSW1', 'QLD1', 'SA1', 'TAS1'])]
+    df_geo = df_geo.drop(columns = ['Region', 'Dispatch Type'])
     
-    # Extract geo data from WFS server
-    url = 'https://services.ga.gov.au/gis/services/National_Electricity_Infrastructure/MapServer/WFSServer'
-    params = dict(service = 'WFS', version = "2.0.0", request = 'GetFeature', typeName = 'National_Electricity_Infrastructure:Major_Power_Stations')
-    wfs_request_url = Request('GET', url, params = params).prepare().url
-    df_geoservice = gpd.read_file(wfs_request_url)
+    df_aemo = df_aemo[df_aemo['Classification'] != 'Non-Scheduled']
+
+    # Join on DUID - this will miss some DUIDs, especially where there are multiple DUIDs for a single station
+    df_matched = df_aemo.merge(df_geo, how = 'left', on = 'DUID')
+    df_matched = df_matched.drop_duplicates(subset = ['DUID'], keep = 'last')
+
+
+    # Some stations with multiple DUIDs only populate one DUID with geometry data
+    # Copy the geometry data from the DUID which was populated
+    # Only capture those with identical station names
+    df_duid_missed = df_matched[df_matched['geometry'].isna()]
+    for i_station in df_duid_missed['Station Name'].unique():
     
-    df_geoservice = df_geoservice.loc[~df_geoservice['STATE'].isin(['Western Australia', 'Northern Territory'])]
-
+        df_tmp = df_matched[df_matched['Station Name'] == i_station]
+        index_populated = df_tmp[df_tmp['Site Name'].notna()].index
     
-    # Extract AEMO station data through nemosis
-    df_aemo = static_table('Generators and Scheduled Loads', raw_data_cache)
-
-
-    # Find exact matches
-    df_matched = df_aemo.merge(df_geoservice, how = 'inner', left_on = 'Station Name', right_on = 'POWERSTATION_NAME')
-    # Remove matched stations from source tables to avoid matching again
-    df_aemo_tmp = df_aemo.loc[~df_aemo['Station Name'].isin(df_matched['Station Name'])]
-    df_geoservice_tmp = df_geoservice.loc[~df_geoservice['POWERSTATION_NAME'].isin(df_matched['POWERSTATION_NAME'])]
-
-
-    # Remove the string 'Power Station' then find exact matches
-    df_aemo_tmp.insert(0, 'Station Name - No Power Station', df_aemo_tmp['Station Name'].str.replace(' Power Station', ''))
-    df_geoservice_tmp.insert(0, 'POWERSTATION_NAME - No Power Station', df_geoservice_tmp['POWERSTATION_NAME'].str.replace(' Power Station', ''))
-
-    df_tmp = df_aemo_tmp.merge(df_geoservice_tmp, how = 'inner', left_on = 'Station Name - No Power Station', right_on = 'POWERSTATION_NAME - No Power Station')
-    df_tmp = df_tmp.drop(columns = ['Station Name - No Power Station', 'POWERSTATION_NAME - No Power Station'])
-
-    df_matched = pd.concat([df_matched, df_tmp])
-
-    df_aemo_tmp = df_aemo_tmp.loc[~df_aemo_tmp['Station Name'].isin(df_matched['Station Name'])]
-    df_geoservice_tmp = df_geoservice_tmp.loc[~df_geoservice_tmp['POWERSTATION_NAME'].isin(df_matched['POWERSTATION_NAME'])]
-
-
-    # Find the best fuzzywuzzy matches
-    # Use the name without the words Power Station to reduce the number of false positives
-    choices = list(df_geoservice_tmp['POWERSTATION_NAME - No Power Station'])
-
-    for i in df_aemo_tmp['DUID']:
-
-        query = df_aemo_tmp[df_aemo_tmp['DUID'] == i]['Station Name - No Power Station'].item()
-        best_match = process.extractOne(query, choices)
-
-        duid_skip_man = ['CALL_B_1', 'CALL_B_2', '-', 'TIB1', 'TORRB1', 'TORRB2', 'TORRB3', 'TORRB4', 'GB01', 'HBESSG1', 'HBESSL1', 'HBESS1', 'KABANWF1', 'UPPTUMUT', 'WDBESS1', 'BHB1']
-    
-        if best_match[1] >= 90:
+        if not df_tmp.loc[index_populated].empty:
         
-            if i not in duid_skip_man:
-            
-                #print(i, " - ", best_match)
-            
-                df_aemo_tmp_row = df_aemo_tmp[df_aemo_tmp['DUID'] == i]
-                df_geoservice_tmp_row = df_geoservice_tmp[df_geoservice_tmp['POWERSTATION_NAME - No Power Station'] == best_match[0]]
-            
-                df_aemo_tmp_row.insert(0, 'TEMP_JOIN', 'JOINVALUE', allow_duplicates = True)
-                df_geoservice_tmp_row.insert(0, 'TEMP_JOIN', 'JOINVALUE', allow_duplicates = True)
-                df_tmp = df_aemo_tmp_row.merge(df_geoservice_tmp_row, how = 'inner', on = 'TEMP_JOIN')
-                df_tmp = df_tmp.drop(columns = ['Station Name - No Power Station', 'POWERSTATION_NAME - No Power Station', 'TEMP_JOIN'])
-            
-                df_matched = pd.concat([df_matched, df_tmp])
+            if len(index_populated) > 1:
+                #print('More than one index with Station Name ' + i_station + ' has a non-empty Site Name')
+                index_populated = index_populated[0]
         
-            #else:
-                #print('Skipping ', i, ' due to manual adjustment')
-
-    df_aemo_tmp = df_aemo_tmp.loc[~df_aemo_tmp['Station Name'].isin(df_matched['Station Name'])]
-    df_geoservice_tmp = df_geoservice_tmp.loc[~df_geoservice_tmp['POWERSTATION_NAME'].isin(df_matched['POWERSTATION_NAME'])]
+            for i_index in df_tmp.index.drop(index_populated):
+                df_matched.loc[i_index] = df_tmp.loc[i_index].fillna(df_tmp.loc[index_populated].squeeze())
 
 
-    # Remove all geoservice columns except the geo data
-    df_matched = df_matched.drop(columns = df_geoservice.columns.drop(['LOCALITY', 'X_COORDINATE', 'Y_COORDINATE']))
-    df_matched = gpd.GeoDataFrame(df_matched, geometry = gpd.points_from_xy(df_matched.X_COORDINATE, df_matched.Y_COORDINATE), crs = 'EPSG:4326')
+    # Manually copy geometry data where stations are different, but close enough
+    l_unpop = ('BOWWPV1', 'BOWWBA1', 'SNOWSTH1', 'STUBSF1', 'SNOWYP', 'WLWLSF2', 'WARWSF2')
+    l_pop = ('BOLIVPS1', 'BOLIVPS1', 'SNOWNTH1', 'STUBSF2', 'TUMUT3', 'WLWLSF1', 'WARWSF1')
+    if len(l_pop) != len(l_unpop):
+        print('Manual copy lists are of unequal length')
+
+    for i in range(0, len(l_unpop)):
+
+        i_pop = df_matched[df_matched['DUID'] == l_pop[i]].index.item()
+        i_unpop = df_matched[df_matched['DUID'] == l_unpop[i]].index.item()
+
+        df_matched.loc[i_unpop] = df_matched.loc[i_unpop].fillna(df_matched.loc[i_pop].squeeze())
 
 
-    #TODO: Only have relevant columns in cleaned comparison
-    df_matched.to_csv(raw_data_cache + 'Stations with Geo Data.csv', index = False)
+    df_matched = df_matched.drop(columns = df_geo.columns.drop(['DUID', 'geometry']))
+    df_matched = gpd.GeoDataFrame(df_matched)
+
+
+    # Export matched CSV for manual checking
+    df_matched.to_csv(raw_data_cache + 'Stations with Geo Data - Cleaned.csv', index = False)
 
     return(df_matched)
