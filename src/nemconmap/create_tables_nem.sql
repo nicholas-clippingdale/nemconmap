@@ -102,10 +102,6 @@ CREATE TABLE IF NOT EXISTS nem.registeredgenandload(
 	,technologytypedescriptor VARCHAR(256)
 	,aggregation VARCHAR(1)
 	,duid VARCHAR(10)
-	,gml_id VARCHAR(256)
-	,locality VARCHAR(256)
-	,x_coordinate NUMERIC(3,6)
-	,y_coordinate NUMERIC(3,6)
 	,geometry_point geometry 
 	,upload DATE
 
